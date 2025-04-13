@@ -15,6 +15,7 @@ public:
     virtual void renderGui() = 0;
     virtual void cleanUp() = 0;
     virtual void onWindowResized(int width, int height) = 0;
+    virtual void blockUntilBuildComplete() = 0;
 
     struct SceneScreenshotInfo {
         int width = 1920;
@@ -25,6 +26,7 @@ public:
     virtual bool generateSceneScreenshot(int number, SceneScreenshotInfo *info) = 0;
 
     std::vector<std::string> m_startupParameters;
+    bool with_gui = true;
 };
 
 #endif

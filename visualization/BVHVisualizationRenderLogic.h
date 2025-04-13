@@ -24,6 +24,8 @@ public:
 
     bool generateSceneScreenshot(int number, SceneScreenshotInfo *info) override;
 
+    void blockUntilBuildComplete() override;
+
 private:
     ThirdPersonCamera m_camera;
     BVHVisualizationRenderer m_renderer;

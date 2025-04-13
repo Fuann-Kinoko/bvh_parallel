@@ -25,6 +25,13 @@ void BVHVisualizationRenderer::init(const std::string &path) {
     }));
 }
 
+void BVHVisualizationRenderer::blockUntilBuildComplete() {
+    for(auto &t : m_bvh_builder_threads) {
+        t.join();
+    }
+    m_bvh_builder_threads.clear();
+}
+
 void BVHVisualizationRenderer::update_bbox_under_construction(const Kmeans* kmeans_node) {
     // kmeans_node->print();
     std::lock_guard<std::mutex> lock(side_data_mutex);
@@ -89,9 +96,7 @@ void BVHVisualizationRenderer::cleanUp(bool full) {
     if(full)
         m_bvh_builder.reset();
     // FIXME: cleanup thread就算没有执行完也要强制退出
-    for(auto &thread_i: m_bvh_builder_threads)
-        thread_i.join();
-    m_bvh_builder_threads.clear();
+    blockUntilBuildComplete();
 }
 
 void BVHVisualizationRenderer::initSideVisualization() {

@@ -8,18 +8,53 @@
 
 #include "../renderengine/utils/IOUtils.h"
 
+struct ModelInfo {
+    std::string path;
+    float cameraR;
+    float cameraTheta;
+    float cameraPhi;
+    int idx;
+
+    ModelInfo(const std::string &path, float cameraR, float cameraTheta, float cameraPhi, int idx)
+        : path(path), cameraR(cameraR), cameraTheta(cameraTheta), cameraPhi(cameraPhi), idx(idx) {}
+};
+
+const char* models[] = { "Dragon", "Cow", "Homer", "Face", "Car" };
+ModelInfo switchModel(const std::string &name) {
+    int model_idx = std::distance(models, std::find(models, models + 5, name));
+    switch (model_idx) {
+        case 0:
+            return {"./resources/models/dragon/xyzrgb_dragon.obj", 124.0f, 0.2f, 2.5f, model_idx};
+            break;
+        case 1:
+            return {"./resources/models/spot/spot_triangulated_good.obj", 2.0f, 0.3f, 4.3f, model_idx };
+            break;
+        case 2:
+            return {"./resources/models/homer/homer.obj", 2.0f, 0.0f, 0.0f, model_idx };
+            break;
+        case 3:
+            return {"./resources/models/face/max-planck.obj", 174.f, 0.1f, 4.0f, model_idx };
+            break;
+        case 4:
+            return {"./resources/models/car/beetle-alt.obj", 0.8f, 0.13f, 5.35f, model_idx };
+            break;
+        default:
+            return {"./resources/models/spot/spot_triangulated_good.obj", 2.0f, 0.0f, 0.0f, 1 };
+            break;
+    }
+}
+
 void BVHVisualizationRenderLogic::init() {
     if (m_startupParameters.size() != 1) {
         std::cout << "[WARNING] No input path to the obj file as program argument provided. Using the example file instead. Otherwise use: ./BVHVisualization <pathToOBJ.obj>" << std::endl;
+        m_startupParameters.emplace_back("Cow");
     }
+    ModelInfo startupModelInfo = switchModel(m_startupParameters[0]);
+    m_currentModel = startupModelInfo.idx;
+    m_startupParameters.emplace_back(startupModelInfo.path);
+    m_camera.move(startupModelInfo.cameraR, startupModelInfo.cameraTheta, startupModelInfo.cameraPhi);
 
-    m_currentModel = 1; // 0 for dragon, 1 for cow, 2 for ...
-    m_startupParameters.emplace_back("./resources/models/spot/spot_triangulated_good.obj");
-    // m_startupParameters.emplace_back("./resources/models/dragon/xyzrgb_dragon.obj");
-
-    m_camera.move(2.f, 0.f, 5.f);
-
-    m_renderer.init(m_startupParameters[0]);
+    m_renderer.init(startupModelInfo.path);
 }
 
 void BVHVisualizationRenderLogic::update(float time, KeyboardInput *keyboardInput, MouseInput *mouseInput) {
@@ -138,5 +173,15 @@ void BVHVisualizationRenderLogic::onWindowResized(int width, int height) {
 }
 
 bool BVHVisualizationRenderLogic::generateSceneScreenshot(int number, IRenderLogic::SceneScreenshotInfo *info) {
-    return false;
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    std::ostringstream oss;
+    oss << "screenshot_" << std::put_time(&tm, "%Y-%m-%d_%H-%M-%S") << ".png";
+    std::cout << "[Log] Screenshot saved to " << oss.str() << std::endl;
+    IOUtils::writeFramebufferToFile(oss.str(), windowSize.x, windowSize.y);
+    return true;
+}
+
+void BVHVisualizationRenderLogic::blockUntilBuildComplete() {
+    m_renderer.blockUntilBuildComplete();
 }

@@ -23,6 +23,7 @@ public:
     void initSideVisualization();
     void updateSideVisualization();
     void updateBVHVisualization();
+    void blockUntilBuildComplete();
 
     int m_bvhVisualizationMinLevel = 0;
     int m_bvhVisualizationMaxLevel = 32;

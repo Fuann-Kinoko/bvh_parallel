@@ -28,9 +28,20 @@ void RenderEngine::init() {
 }
 
 void RenderEngine::renderLoop() {
-    while (!glfwWindowShouldClose(m_window)) {
+    bool no_gui = !m_renderLogic->with_gui;
+    int no_gui_tick = 0;
+    while (!glfwWindowShouldClose(m_window) && no_gui_tick < 100) {
         update();
         render();
+        if(no_gui) {
+            ++no_gui_tick;
+            m_renderLogic->blockUntilBuildComplete();
+        }
+    }
+    if(no_gui) {
+        update();
+        render();
+        m_renderLogic->generateSceneScreenshot(1, NULL);
     }
 }
 
@@ -51,7 +62,8 @@ void RenderEngine::update() {
 void RenderEngine::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_renderLogic->render();
-    renderGui();
+    if(m_renderLogic->with_gui)
+        renderGui();
     /* Swap front and back buffers */
     glfwSwapBuffers(m_window);
     /* Poll for and process events */
@@ -69,7 +81,7 @@ void RenderEngine::renderGui() {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-GLFWwindow *RenderEngine::initGL(const std::string &title, int width, int height) {
+GLFWwindow *RenderEngine::initGL(const std::string &title, int width, int height, bool gui) {
     GLFWwindow *window;
 
     /* Initialize the library */
@@ -78,11 +90,11 @@ GLFWwindow *RenderEngine::initGL(const std::string &title, int width, int height
     }
 
     glfwDefaultWindowHints();
-    glfwWindowHint(GLFW_VISIBLE, GL_FALSE);
     glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    if(!gui) glfwWindowHint(GLFW_VISIBLE, GL_FALSE);
 
     /* Create a windowed mode window and its OpenGL context */
     window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
@@ -97,15 +109,17 @@ GLFWwindow *RenderEngine::initGL(const std::string &title, int width, int height
         }
     });
 
-    const GLFWvidmode *vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    if (!vidMode) {
-        glfwTerminate();
-        return nullptr;
-    }
-    glfwSetWindowPos(window,
-                     static_cast<int>(static_cast<float>(vidMode->width - width) / 2.f),
-                     static_cast<int>(static_cast<float>(vidMode->height - height) / 2.f));
 
+    if(gui) {
+        const GLFWvidmode *vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+        if (!vidMode) {
+            glfwTerminate();
+            return nullptr;
+        }
+        glfwSetWindowPos(window,
+                        static_cast<int>(static_cast<float>(vidMode->width - width) / 2.f),
+                        static_cast<int>(static_cast<float>(vidMode->height - height) / 2.f));
+    }
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
 
@@ -117,7 +131,9 @@ GLFWwindow *RenderEngine::initGL(const std::string &title, int width, int height
     glfwSwapInterval(1);
 
     /* Make the window visible */
-    glfwShowWindow(window);
+    if(gui) {
+        glfwShowWindow(window);
+    }
 
     /* Set the clear color */
     glClearColor(RED, GREEN, BLUE, 1.0f);

@@ -16,10 +16,18 @@ void IOUtils::readAllLines(const std::string& path, std::string *buffer) {
 #endif
 
 void IOUtils::writeFramebufferToFile(const std::string &file, int width, int height) {
-    char *data = new char[width * height * 3];
+    char *data = (char*) calloc(4, width * height);
 
-    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
-    stbi_flip_vertically_on_write(1);
-    stbi_write_png(file.c_str(), width, height, 3, data, width * 3);
+    // stbi_flip_vertically_on_write(1);
+    stbi_write_png(
+        file.c_str(),
+        width,
+        height,
+        4,
+        data + (width * 4 * (height - 1)),
+        -width * 4);
+
+    free(data);
 }

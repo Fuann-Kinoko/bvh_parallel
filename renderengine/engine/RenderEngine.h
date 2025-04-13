@@ -9,7 +9,7 @@
 
 class RenderEngine {
 public:
-    static GLFWwindow *initGL(const std::string &title, int width, int height);
+    static GLFWwindow *initGL(const std::string &title, int width, int height, bool gui);
 
     static void initImGui(GLFWwindow *window);
 
