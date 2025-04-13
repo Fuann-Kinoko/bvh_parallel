@@ -78,6 +78,7 @@ private:
     // 计时用
     // Timer timer;
 
+    std::vector<bool> children_existence;
     // 与渲染进行沟通的callback
     std::function<void (const Kmeans *)> callback_func;
 

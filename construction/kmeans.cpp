@@ -18,6 +18,7 @@ Kmeans::Kmeans(size_t iterCount, size_t K, size_t P, vector<Primitive*> primitiv
     this->primitives = primitives;
     cluster = new Cluster[m_K];
     children = new Kmeans*[m_K];
+    children_existence = std::vector<bool>(m_K, true);
     BoundingBox cur_world;
     for (size_t i = 0; i < primitives.size(); ++i) {
         cur_world.expand(primitives[i]->get_bbox());
@@ -98,7 +99,7 @@ void Kmeans::constructKaryTree()
     for (size_t i = 0; i < m_K; i++) {
         // 叶子cluster 该cluster[i]对应的children为NULL
         if (cluster[i].indexOfPrimitives.size() < maxLeafNum * m_K) {
-            children[i] = NULL;
+            children_existence[i] = false;
             continue;
         }
     }
@@ -109,7 +110,7 @@ void Kmeans::constructKaryTree()
     // 对本层中的每个cluster循环构造下层
     for (size_t i = 0; i < m_K; i++) {
         // 跳过叶子children
-        if (children[i] == NULL)
+        if (!children_existence[i])
             continue;
         // 否则DFS
         vector<Primitive *> pTemp;
@@ -237,7 +238,7 @@ void Kmeans::traverse_cluster(std::vector<float> *vertices, std::vector<float> *
         glm::vec3 color(1);
         bool is_leaf = true;
         for (size_t child_i = 0; child_i < this->m_K; ++child_i) {
-            if (children[child_i] != NULL) {
+            if (children_existence[child_i]) {
                 is_leaf = false;
                 break;
             }
