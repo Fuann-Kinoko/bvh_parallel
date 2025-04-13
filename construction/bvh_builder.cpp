@@ -61,5 +61,7 @@ void BVHBuilder::Build() {
 
     Kmeans *k = new Kmeans(2, 8, 5, p_pri);
     k->registerCallback(m_callback);
+    std::cout << "[Log] K-means BVH Building..." << std::endl;
     k->constructKaryTree();
+    std::cout << "[Log] K-means BVH Building Completed" << std::endl;
 }

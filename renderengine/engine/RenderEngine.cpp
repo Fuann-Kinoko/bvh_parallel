@@ -81,9 +81,15 @@ void RenderEngine::renderGui() {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
+static void glfw_error_callback(int error, const char* description)
+{
+    fprintf(stderr, "ERROR::GLFW::%d: %s\n", error, description);
+}
+
 GLFWwindow *RenderEngine::initGL(const std::string &title, int width, int height, bool gui) {
     GLFWwindow *window;
 
+    glfwSetErrorCallback(glfw_error_callback);
     /* Initialize the library */
     if (!glfwInit()) {
         return nullptr;

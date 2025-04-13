@@ -20,15 +20,18 @@ void BVHVisualizationRenderer::init(const std::string &path) {
         std::cout << "[WARNING] Object path changed to" << path << ", re-importing object" << std::endl;
     }
     // build BVH in a separate thread
+    std::cout << "[Log] Start Building BVH in a separate thread" << std::endl;
     m_bvh_builder_threads.emplace_back(std::thread([this](){
         m_bvh_builder->Build();
     }));
 }
 
 void BVHVisualizationRenderer::blockUntilBuildComplete() {
+    if(m_bvh_builder_threads.empty()) return;
     for(auto &t : m_bvh_builder_threads) {
         t.join();
     }
+    std::cout << "[Log] Block Until Build Thread Completed" << std::endl;
     m_bvh_builder_threads.clear();
 }
 
