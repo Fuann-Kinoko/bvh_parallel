@@ -49,12 +49,11 @@ void BVHVisualizationRenderLogic::init() {
         std::cout << "[WARNING] No input path to the obj file as program argument provided. Using the example file instead. Otherwise use: ./BVHVisualization <pathToOBJ.obj>" << std::endl;
         m_startupParameters.emplace_back("Cow");
     }
-    ModelInfo startupModelInfo = switchModel(m_startupParameters[0]);
-    m_currentModel = startupModelInfo.idx;
-    m_startupParameters.emplace_back(startupModelInfo.path);
-    m_camera.move(startupModelInfo.cameraR, startupModelInfo.cameraTheta, startupModelInfo.cameraPhi);
+    ModelInfo info = switchModel(m_startupParameters[0]);
+    m_currentModel = info.idx;
+    m_camera.move(info.cameraR, info.cameraTheta, info.cameraPhi);
 
-    m_renderer.init(startupModelInfo.path);
+    m_renderer.init(info.path);
 }
 
 void BVHVisualizationRenderLogic::update(float time, KeyboardInput *keyboardInput, MouseInput *mouseInput) {
@@ -120,34 +119,15 @@ void BVHVisualizationRenderLogic::renderGui() {
 
     ImGui::Spacing();
 
-    const char* models[] = { "Dragon", "Cow", "Homer", "Face", "Car" };
     if (ImGui::Combo("Model", &m_currentModel, models, IM_ARRAYSIZE(models))) {
         // This block executes when the selection changes
         m_startupParameters.clear();
-        switch (m_currentModel) {
-            case 0:
-                m_startupParameters.emplace_back("./resources/models/dragon/xyzrgb_dragon.obj");
-                break;
-            case 1:
-                m_startupParameters.emplace_back("./resources/models/spot/spot_triangulated_good.obj");
-                break;
-            case 2:
-                m_startupParameters.emplace_back("./resources/models/homer/homer.obj");
-                break;
-            case 3:
-                m_startupParameters.emplace_back("./resources/models/face/max-planck.obj");
-                break;
-            case 4:
-                m_startupParameters.emplace_back("./resources/models/car/beetle-alt.obj");
-                break;
-            default:
-                m_startupParameters.emplace_back("./resources/models/spot/spot_triangulated_good.obj");
-                break;
-        }
+        m_startupParameters.emplace_back(models[m_currentModel]);
     }
 
     if (ImGui::Button("Reconstruction")) {
-        m_renderer.init(m_startupParameters[0]);
+        ModelInfo info = switchModel(m_startupParameters[0]);
+        m_renderer.init(info.path);
     }
 
     ImGui::Spacing();
