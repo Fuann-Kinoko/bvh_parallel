@@ -6,11 +6,13 @@
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
+#include <chrono> // 用于计时
+#include <fstream> // 用于写入CSV文件
 
 using namespace std;
 #define maxLeafNum 4
 
-Kmeans::Kmeans(size_t iterCount, size_t K, size_t P, vector<Primitive*> primitives)
+Kmeans::Kmeans(size_t iterCount, size_t K, size_t P, vector<Primitive*> primitives)//迭代次数、聚类数、随机点数、集几何体
 {
     m_iterations = iterCount;
     m_K = K;
@@ -93,6 +95,9 @@ void Kmeans::registerCallback(std::function<void (const Kmeans *)> func) {
 // https://meistdan.github.io/publications/kmeans/paper.pdf
 void Kmeans::constructKaryTree()
 {
+    // 计时开始
+    auto start_time = std::chrono::high_resolution_clock::now();
+
     // 构造本层结构
     this->run();
     // 判定是否是叶子节点
@@ -122,6 +127,21 @@ void Kmeans::constructKaryTree()
             children[i]->registerCallback(callback_func);
         }
         children[i]->constructKaryTree();
+    }
+
+    // 计时结束
+    auto end_time = std::chrono::high_resolution_clock::now();
+    //捕获时钟原始精度，再转换为浮点微秒
+    auto elapsed_ns = std::chrono::duration<double, std::nano>(end_time - start_time);
+    std::chrono::duration<double, std::micro> elapsed_us = elapsed_ns / 1000.0;
+    
+    // 将耗时写入CSV文件
+    std::ofstream csv_file("oncetime/oncetime.csv", std::ios::app);
+    if (csv_file.is_open()) {
+        csv_file << elapsed_us.count() << "\n";
+        csv_file.close();
+    } else {
+        std::cerr << "ERROR::Failed to open CSV file for writing!!!" << std::endl;
     }
 }
 

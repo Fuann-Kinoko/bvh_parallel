@@ -61,6 +61,7 @@ set(${CMAKE_PROJECT_NAME}-SRC
         visualization/BVH.cpp
         construction/bbox.hpp construction/cluster.hpp construction/kmeans.cpp construction/primitive.h construction/vertex.h
         construction/bvh_builder.cpp
+        construction/time_prefixsum.cpp
 )
 
 add_executable(${CMAKE_PROJECT_NAME} ${${CMAKE_PROJECT_NAME}-SRC})

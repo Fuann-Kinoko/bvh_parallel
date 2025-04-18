@@ -1,7 +1,8 @@
 #include "renderengine/engine/RenderEngine.h"
 #include "renderengine/utils/IOUtils.h"
-
 #include "visualization/BVHVisualizationRenderLogic.h"
+
+int timePrefixSum();
 
 int main(int argc, char *argv[]) {
     bool gui = true;
@@ -36,6 +37,6 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     delete renderEngine;
-
+    timePrefixSum();//对oncetime中的时间进行求前缀和
     return EXIT_SUCCESS;
 }
