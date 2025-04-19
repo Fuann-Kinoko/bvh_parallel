@@ -1,4 +1,5 @@
 #include "bvh_builder.h"
+#include "construction/timer.hpp"
 
 std::shared_ptr<BVHBuilder> BVHBuilder::LoadFromObj(const std::string& path) {
     // 创建 BVHBuilder 实例
@@ -62,9 +63,12 @@ void BVHBuilder::Build() {
     Kmeans *k = new Kmeans(2, 8, 5, p_pri);
     k->registerCallback(m_callback);
 
+    // 创建表头
+    timer::create_k_means_header();
+
     std::cout << "[Log] K-means BVH Building..." << std::endl;
-    
-    k->constructKaryTree();
-    
+
+    k->constructKaryTree(0);
+
     std::cout << "[Log] K-means BVH Building Completed" << std::endl;
 }

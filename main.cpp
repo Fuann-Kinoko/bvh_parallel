@@ -1,8 +1,7 @@
 #include "renderengine/engine/RenderEngine.h"
 #include "renderengine/utils/IOUtils.h"
 #include "visualization/BVHVisualizationRenderLogic.h"
-
-int timePrefixSum();
+#include "construction/timer.hpp"
 
 int main(int argc, char *argv[]) {
     bool gui = true;
@@ -37,6 +36,10 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     delete renderEngine;
-    timePrefixSum();//对oncetime中的时间进行求前缀和
+
+    if(!gui) {
+        timer::time_prefix_sum();
+    }
+
     return EXIT_SUCCESS;
 }

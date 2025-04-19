@@ -3,4 +3,5 @@ BVHVisualization.exe
 BVHVisualization.pdb
 compile_commands.json
 screenshot_*.png
+oncetime/
 build/
