@@ -39,7 +39,7 @@ public:
     void registerCallback(std::function<void (const Kmeans *)> func);
 
     // 从上至下构造k叉树
-    void constructKaryTree();
+    void constructKaryTree(int depth);
 
     // 从下至上 凝聚聚类(AC)构造二叉树
     KBVHNode* agglomerativeClustering();
@@ -59,6 +59,8 @@ public:
     size_t m_K;
     // 参数P
     size_t m_P;
+
+    int unique_id;
 
     // 聚类体
     Cluster* cluster;
