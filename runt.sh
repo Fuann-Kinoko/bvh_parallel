@@ -44,15 +44,15 @@ if [ -f "$INPUT_CSV" ]; then
         BEGIN { OFS="," }
         { print run, model, $0 }
     ' "$INPUT_CSV" >> "$OUTPUT_CSV"
-    
+
     # 生成统计信息
     TOTAL_RENDERS=$(wc -l < "$INPUT_CSV")
     AVERAGE_TIME=$(awk '{sum+=$1} END{printf "%.4f", sum/NR}' "$INPUT_CSV")
-    
+
     echo "==== 运行完成！ ===="
     echo "运行次数:  第${RUN_NUMBER}次"
     echo "模型类型:      $MODEL"
-    
+
     # 清空原始数据文件
     > "$INPUT_CSV"
 else
