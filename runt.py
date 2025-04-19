@@ -19,18 +19,19 @@ def get_last_valid_value(csv_file):
     return None
 
 def main():
-    runs = 5
+    runs = 100
     models = ["Cow", "Dragon", "Face", "Car"]
+
+    runtime_csv = "runtime.csv"
+    onetime_csv = "oncetime/oncetime.csv"
+    totaltime_csv = "oncetime/totaltime.csv"
+    statistics_dir = "statistics"
+    
+    with open(runtime_csv, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["Index", "Model", "Construction Time(us)"])
+
     for model in models:
-        runtime_csv = "runtime.csv"
-        onetime_csv = "oncetime/oncetime.csv"
-        totaltime_csv = "oncetime/totaltime.csv"
-        statistics_dir = "statistics"
-
-        with open(runtime_csv, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(["Index", "Model", "Construction Time(us)"])
-
         for i in range(1, runs + 1):
             if platform.system() == 'Windows':
                 os.system(f"powershell -ExecutionPolicy Bypass -File run.ps1 {model}")
