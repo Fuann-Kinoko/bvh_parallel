@@ -24,5 +24,5 @@ if [ $# -ge 1 ]; then
 fi
 
 
-./BVHVisualization --no_gui "$MODEL"
+./BVHVisualization --no_gui --no_render "$MODEL"
 

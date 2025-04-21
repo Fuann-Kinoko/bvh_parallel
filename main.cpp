@@ -5,12 +5,21 @@
 
 int main(int argc, char *argv[]) {
     bool gui = true;
-    if (argc > 1) {
-        char *first_arg = argv[1];
-        if (strcmp(first_arg, "--no_gui") == 0) {
+    bool render = true;
+    std::vector<char*> filtered_args;
+    for(int i = 1; i < argc; ++i) {
+        char *arg = argv[i];
+        if (strcmp(arg, "--no_gui") == 0) {
             gui = false;
             std::cout << "[WARNING] program without GUI" << std::endl;
+            continue;
         }
+        if (strcmp(arg, "--no_render") == 0) {
+            render = false;
+            std::cout << "[WARNING] program without rendering" << std::endl;
+            continue;
+        }
+        filtered_args.push_back(arg);
     }
 
     GLFWwindow *window = RenderEngine::initGL("BVHVisualization", 1920, 1080, gui);
@@ -21,11 +30,11 @@ int main(int argc, char *argv[]) {
 
     IRenderLogic *renderLogic = new BVHVisualizationRenderLogic();
 
-    int initArg = (!gui) ? 2 : 1;
-    for (int i = initArg; i < argc; i++) {
-        renderLogic->m_startupParameters.emplace_back(argv[i]);
+    for (char *arg_i: filtered_args) {
+        renderLogic->m_startupParameters.emplace_back(arg_i);
     }
     renderLogic->with_gui = gui;
+    renderLogic->with_render = render;
 
     auto *renderEngine = new RenderEngine(window, renderLogic);
     try {

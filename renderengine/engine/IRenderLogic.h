@@ -27,6 +27,7 @@ public:
 
     std::vector<std::string> m_startupParameters;
     bool with_gui = true;
+    bool with_render = true;
 };
 
 #endif

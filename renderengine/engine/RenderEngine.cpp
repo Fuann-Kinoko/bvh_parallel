@@ -28,6 +28,11 @@ void RenderEngine::init() {
 }
 
 void RenderEngine::renderLoop() {
+    if(!m_renderLogic->with_render) {
+        m_renderLogic->blockUntilBuildComplete();
+        return;
+    }
+
     bool no_gui = !m_renderLogic->with_gui;
     int no_gui_tick = 0;
     while (!glfwWindowShouldClose(m_window) && no_gui_tick < 100) {
