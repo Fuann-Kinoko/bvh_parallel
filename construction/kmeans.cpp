@@ -1,20 +1,27 @@
 #include "kmeans.hpp"
 #include "primitive.h"
 #include "../visualization/BVH.h"
+#include "construction/timer.hpp"
 
 #include <ctime>
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
+#include <chrono> // 用于计时
+#include <fstream> // 用于写入CSV文件
 
 using namespace std;
 #define maxLeafNum 4
 
+static int UNIQUE_ID = 0;
+
 Kmeans::Kmeans(size_t iterCount, size_t K, size_t P, vector<Primitive*> primitives)
+//迭代次数、聚类数、随机点数、集几何体
 {
     m_iterations = iterCount;
     m_K = K;
     m_P = P;
+    this->unique_id = UNIQUE_ID++;
     this->primitives = primitives;
     cluster = new Cluster[m_K];
     children = new Kmeans*[m_K];
@@ -91,10 +98,19 @@ void Kmeans::registerCallback(std::function<void (const Kmeans *)> func) {
 
 // Parallel BVH Construction using k-means Clustering
 // https://meistdan.github.io/publications/kmeans/paper.pdf
-void Kmeans::constructKaryTree()
+void Kmeans::constructKaryTree(int depth)
 {
+    // 计时开始
+    auto start_time = std::chrono::high_resolution_clock::now();
+
     // 构造本层结构
     this->run();
+
+    // 计时结束
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    timer::write_k_means_time(this->unique_id, depth, elapsed_us.count());
+
     // 判定是否是叶子节点
     for (size_t i = 0; i < m_K; i++) {
         // 叶子cluster 该cluster[i]对应的children为NULL
@@ -121,7 +137,7 @@ void Kmeans::constructKaryTree()
         if(callback_func) {
             children[i]->registerCallback(callback_func);
         }
-        children[i]->constructKaryTree();
+        children[i]->constructKaryTree(depth + 1);
     }
 }
 
