@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 # list(APPEND CMAKE_PREFIX_PATH "C:\\COMMON\\glfw\\build\\install\\")
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
+find_package(OpenMP REQUIRED)
 # set(GLFW_BUILD_DOCS OFF CACHE BOOL "GLFW lib only")
 # set(GLFW_INSTALL OFF CACHE BOOL "GLFW lib only")
 
@@ -73,6 +74,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     glm::glm
     imgui
     glad
+    OpenMP::OpenMP_CXX
 )
 
 if (MSVC)
