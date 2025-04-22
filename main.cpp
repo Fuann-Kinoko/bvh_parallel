@@ -52,9 +52,7 @@ int main(int argc, char *argv[]) {
     }
     delete renderEngine;
 
-    if(!gui) {
-        timer::time_prefix_sum();
-    }
+    timer::time_prefix_sum();
 
     return EXIT_SUCCESS;
 }
