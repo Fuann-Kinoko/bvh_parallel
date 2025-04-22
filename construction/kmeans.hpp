@@ -36,7 +36,7 @@ public:
     void run();
 
     // 注册与渲染沟通的callback
-    void registerCallback(std::function<void (const Kmeans *)> func);
+    void registerCallback(std::function<void (const BoundingBox, const bool)> func);
 
     // 从上至下构造k叉树
     void constructKaryTree(int depth);
@@ -82,7 +82,7 @@ private:
 
     std::vector<bool> children_existence;
     // 与渲染进行沟通的callback
-    std::function<void (const Kmeans *)> callback_func;
+    std::function<void (const BoundingBox, const bool)> callback_func;
 
     // 初始化随机点
     std::vector<BoundingBox> getRandCentroidsOnMesh(int k, int p);

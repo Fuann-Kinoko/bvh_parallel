@@ -52,5 +52,5 @@ private:
     std::shared_ptr<BVHBuilder> m_bvh_builder;
     std::vector<std::thread> m_bvh_builder_threads;
 
-    void update_bbox_under_construction(const Kmeans *kmeans_node);
+    void update_bbox_under_construction(const BoundingBox world, const bool is_leaf);
 };

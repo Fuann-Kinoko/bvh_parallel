@@ -1,4 +1,5 @@
 #include "kmeans.hpp"
+#include "bbox.hpp"
 #include "primitive.h"
 #include "../visualization/BVH.h"
 #include "construction/timer.hpp"
@@ -92,7 +93,7 @@ float Kmeans::calDistance(BoundingBox b1, BoundingBox b2)
 }
 
 
-void Kmeans::registerCallback(std::function<void (const Kmeans *)> func) {
+void Kmeans::registerCallback(std::function<void (const BoundingBox, const bool)> func) {
     callback_func = func;
 }
 
@@ -111,17 +112,20 @@ void Kmeans::constructKaryTree(int depth)
     auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     timer::write_k_means_time(this->unique_id, depth, elapsed_us.count());
 
-    // 判定是否是叶子节点
+    // 判定子节点是否是叶子节点
     for (size_t i = 0; i < m_K; i++) {
         // 叶子cluster 该cluster[i]对应的children为NULL
         if (cluster[i].indexOfPrimitives.size() < maxLeafNum * m_K) {
             children_existence[i] = false;
+            if(callback_func) {
+                callback_func(cluster[i].world, true);
+            }
             continue;
         }
     }
     // 构造本层完成，通过callback通知visualization已经发生改变
     if(callback_func) {
-        callback_func(this);
+        callback_func(this->world, false);
     }
     // 对本层中的每个cluster循环构造下层
     for (size_t i = 0; i < m_K; i++) {
@@ -247,25 +251,22 @@ void Kmeans::run()
     // print();
 }
 
-void Kmeans::traverse_cluster(std::vector<float> *vertices, std::vector<float> *colors, std::vector<int> *indices) const {
-    for(int i = 0; i < m_K; ++i) {
-        glm::vec3 min = world.min;
-        glm::vec3 max = world.max;
-        glm::vec3 color(1);
-        bool is_leaf = true;
-        for (size_t child_i = 0; child_i < this->m_K; ++child_i) {
-            if (children_existence[child_i]) {
-                is_leaf = false;
-                break;
-            }
-        }
-        if(is_leaf) {
-            color = glm::vec3(0,1,0);
-        }
-        BVH::buildCube(vertices, colors, indices, min, max, color);
-    }
-    return;
-}
+// void Kmeans::traverse_cluster(std::vector<float> *vertices, std::vector<float> *colors, std::vector<int> *indices) const {
+//     glm::vec3 min = world.min;
+//     glm::vec3 max = world.max;
+//     glm::vec3 color(1);
+//     bool is_leaf = true;
+//     for (size_t child_i = 0; child_i < this->m_K; ++child_i) {
+//         if (children_existence[child_i]) {
+//             is_leaf = false;
+//             break;
+//         }
+//     }
+//     if(is_leaf) {
+//         color = glm::vec3(0,1,0);
+//     }
+//     BVH::buildCube(vertices, colors, indices, min, max, color);
+// }
 
 void Kmeans::print() const
 {

@@ -6,6 +6,7 @@
 
 class Cluster {
 public:
+    BoundingBox world;
     BoundingBox representive;
     std::vector<size_t> indexOfPrimitives;
 
@@ -27,6 +28,7 @@ public:
         indexOfPrimitives.push_back(i);
         m_min += bb.min;
         m_max += bb.max;
+        world.expand(bb);
     }
 
     glm::vec3 get_min() {return m_min;}

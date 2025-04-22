@@ -2,6 +2,7 @@
 
 #include "../renderengine/utils/Transformation.h"
 #include "BVHVisualizationRenderLogic.h"
+#include "construction/bbox.hpp"
 #include <chrono>
 #include <exception>
 #include <iostream>
@@ -14,8 +15,8 @@ void BVHVisualizationRenderer::init(const std::string &path) {
         cleanUp(true);
         initSideVisualization();
         m_bvh_builder = BVHBuilder::LoadFromObj(path);
-        m_bvh_builder->SetCallback([this](const Kmeans *kmeans_node) {
-            this->update_bbox_under_construction(kmeans_node);
+        m_bvh_builder->SetCallback([this](const BoundingBox world, const bool is_leaf) {
+            this->update_bbox_under_construction(world, is_leaf);
         });
         std::cout << "[WARNING] Object path changed to" << path << ", re-importing object" << std::endl;
     }
@@ -35,10 +36,17 @@ void BVHVisualizationRenderer::blockUntilBuildComplete() {
     m_bvh_builder_threads.clear();
 }
 
-void BVHVisualizationRenderer::update_bbox_under_construction(const Kmeans* kmeans_node) {
+void BVHVisualizationRenderer::update_bbox_under_construction(const BoundingBox world, const bool is_leaf) {
+    glm::vec3 min = world.min;
+    glm::vec3 max = world.max;
+    glm::vec3 color(1);
+    if(is_leaf) {
+        color = glm::vec3(0,1,0);
+    }
     // kmeans_node->print();
     std::lock_guard<std::mutex> lock(side_data_mutex);
-    kmeans_node->traverse_cluster(&side_vertices, &side_colors, &side_indices);
+    BVH::buildCube(&side_vertices, &side_colors, &side_indices, min, max, color);
+    // kmeans_node->traverse_cluster(&side_vertices, &side_colors, &side_indices);
 
     // // FIXME: debug用，用于展示过程，关掉可以显著减少时间
     // std::this_thread::sleep_for(std::chrono::milliseconds(50));
