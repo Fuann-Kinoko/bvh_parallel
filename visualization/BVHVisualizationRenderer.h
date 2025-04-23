@@ -1,5 +1,6 @@
 #pragma once
 
+#include "construction/bbox.hpp"
 #include "glad/glad.h"
 // #include <GL/glew.h>
 
@@ -35,11 +36,13 @@ public:
 
 private:
     std::mutex side_data_mutex;
+    std::mutex task_mutex;
     std::vector<float> side_vertices;
     std::vector<float> side_colors;
     std::vector<int> side_indices;
     int previous_side_size;
     int previous_side_indices_size;
+    int previous_task_size;
 
     GLuint m_vaoId = 0;
     GLuint m_vertexVboId = 0;
@@ -51,6 +54,7 @@ private:
     ShaderProgram m_shaderProgram;
     std::shared_ptr<BVHBuilder> m_bvh_builder;
     std::vector<std::thread> m_bvh_builder_threads;
+    std::vector<std::pair<BoundingBox, bool>> m_tasks;
 
     void update_bbox_under_construction(const BoundingBox world, const bool is_leaf);
 };

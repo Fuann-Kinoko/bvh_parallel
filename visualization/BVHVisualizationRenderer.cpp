@@ -1,13 +1,11 @@
 #include "BVHVisualizationRenderer.h"
 
 #include "../renderengine/utils/Transformation.h"
-#include "BVHVisualizationRenderLogic.h"
 #include "construction/bbox.hpp"
-#include <chrono>
-#include <exception>
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <utility>
 
 void BVHVisualizationRenderer::init(const std::string &path) {
     initSideVisualization();
@@ -15,8 +13,11 @@ void BVHVisualizationRenderer::init(const std::string &path) {
         cleanUp(true);
         initSideVisualization();
         m_bvh_builder = BVHBuilder::LoadFromObj(path);
+        m_tasks.reserve(100000);
         m_bvh_builder->SetCallback([this](const BoundingBox world, const bool is_leaf) {
-            this->update_bbox_under_construction(world, is_leaf);
+            std::lock_guard<std::mutex> lock(task_mutex);
+            m_tasks.push_back(std::make_pair(world, is_leaf));
+            // this->update_bbox_under_construction(world, is_leaf);
         });
         std::cout << "[WARNING] Object path changed to" << path << ", re-importing object" << std::endl;
     }
@@ -56,7 +57,8 @@ void BVHVisualizationRenderer::update_bbox_under_construction(const BoundingBox 
 }
 
 void BVHVisualizationRenderer::render(ACamera *camera, int windowWidth, int windowHeight) {
-    if(previous_side_size != side_vertices.size())
+    // if(previous_side_size != side_vertices.size())
+    if(!m_tasks.empty())
         updateSideVisualization();
     glm::mat4 modelMatrix = Transformation::getModelMatrix(m_position, m_rotation, m_scale);
 
@@ -83,31 +85,61 @@ void BVHVisualizationRenderer::render(ACamera *camera, int windowWidth, int wind
 
     ShaderProgram::unbind();
 }
+void BVHVisualizationRenderer::updateSideVisualization() {
+    // pull out all unfinished tasks
+    std::vector<std::pair<BoundingBox, bool>> tasks;
+    {
+        std::lock_guard<std::mutex> lock(task_mutex);
+        tasks.swap(m_tasks);
+    }
+    // if(!tasks.empty())
+    //     std::cout << "LOG::Frame Update::accumulated tasks size : " << tasks.size() << std::endl;
+    for (const auto& task : tasks) {
+        this->update_bbox_under_construction(task.first, task.second);
+    }
 
-// default : full = false
-void BVHVisualizationRenderer::cleanUp(bool full) {
     std::lock_guard<std::mutex> lock(side_data_mutex);
-    previous_side_indices_size = 0;
-    previous_side_size = 0;
 
-    side_vertices.clear();
-    side_colors.clear();
-    side_indices.clear();
+    m_count = side_indices.size();
 
-    if(m_vertexVboId)
-        glDeleteBuffers(1, &m_vertexVboId);
-    if(m_colorVboId)
-        glDeleteBuffers(1, &m_colorVboId);
-    if(m_indicesVboId)
-        glDeleteBuffers(1, &m_indicesVboId);
-    if(m_vaoId)
-        glDeleteVertexArrays(1, &m_vaoId);
+    m_shaderProgram.bind();
 
-    m_shaderProgram.cleanUp();
-    if(full)
-        m_bvh_builder.reset();
-    // FIXME: cleanup thread就算没有执行完也要强制退出
-    blockUntilBuildComplete();
+    int current_task_size = tasks.size();
+    int current_side_size = side_vertices.size();
+    int current_side_indices_size = side_indices.size();
+
+    glBindVertexArray(m_vaoId);
+
+    // 更新顶点数据
+    glBindBuffer(GL_ARRAY_BUFFER, m_vertexVboId);
+    glBufferData(GL_ARRAY_BUFFER, side_vertices.size() * sizeof(float), side_vertices.data(), GL_DYNAMIC_DRAW);
+    // glBufferSubData(GL_ARRAY_BUFFER,
+    //     previous_side_size * sizeof(float),                         // start offset
+    //     (current_side_size - previous_side_size) * sizeof(float),   // size
+    //     side_vertices.data() + previous_side_size                   // start data pointer
+    // );
+
+    // 更新颜色数据
+    glBindBuffer(GL_ARRAY_BUFFER, m_colorVboId);
+    glBufferData(GL_ARRAY_BUFFER, side_colors.size() * sizeof(float), side_colors.data(), GL_DYNAMIC_DRAW);
+    // glBufferSubData(GL_ARRAY_BUFFER,
+    //     previous_side_size * sizeof(float),
+    //     (current_side_size - previous_side_size) * sizeof(float),
+    //     side_colors.data() + previous_side_size
+    // );
+
+    // 更新索引数据
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_indicesVboId);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, side_indices.size() * sizeof(int), side_indices.data(), GL_DYNAMIC_DRAW);
+    // glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
+    //     previous_side_indices_size * sizeof(int),
+    //     (current_side_indices_size - previous_side_indices_size) * sizeof(int),
+    //     side_indices.data() + previous_side_indices_size
+    // );
+
+    previous_task_size = current_task_size;
+    previous_side_size = current_side_size;
+    previous_side_indices_size = current_side_indices_size;
 }
 
 void BVHVisualizationRenderer::initSideVisualization() {
@@ -150,99 +182,30 @@ void BVHVisualizationRenderer::initSideVisualization() {
     glBindVertexArray(0);
 }
 
-void BVHVisualizationRenderer::updateSideVisualization() {
+// default : full = false
+void BVHVisualizationRenderer::cleanUp(bool full) {
     std::lock_guard<std::mutex> lock(side_data_mutex);
-    m_count = side_indices.size();
+    previous_side_indices_size = 0;
+    previous_side_size = 0;
+    previous_task_size = 0;
 
-    m_shaderProgram.bind();
+    side_vertices.clear();
+    side_colors.clear();
+    side_indices.clear();
 
-    int current_side_size = side_vertices.size();
-    int current_side_indices_size = side_indices.size();
+    if(m_vertexVboId)
+        glDeleteBuffers(1, &m_vertexVboId);
+    if(m_colorVboId)
+        glDeleteBuffers(1, &m_colorVboId);
+    if(m_indicesVboId)
+        glDeleteBuffers(1, &m_indicesVboId);
+    if(m_vaoId)
+        glDeleteVertexArrays(1, &m_vaoId);
 
-    glBindVertexArray(m_vaoId);
-
-    // 更新顶点数据
-    glBindBuffer(GL_ARRAY_BUFFER, m_vertexVboId);
-    glBufferData(GL_ARRAY_BUFFER, side_vertices.size() * sizeof(float), side_vertices.data(), GL_DYNAMIC_DRAW);
-    // glBufferSubData(GL_ARRAY_BUFFER,
-    //     previous_side_size * sizeof(float),                         // start offset
-    //     (current_side_size - previous_side_size) * sizeof(float),   // size
-    //     side_vertices.data() + previous_side_size                   // start data pointer
-    // );
-
-    // 更新颜色数据
-    glBindBuffer(GL_ARRAY_BUFFER, m_colorVboId);
-    glBufferData(GL_ARRAY_BUFFER, side_colors.size() * sizeof(float), side_colors.data(), GL_DYNAMIC_DRAW);
-    // glBufferSubData(GL_ARRAY_BUFFER,
-    //     previous_side_size * sizeof(float),
-    //     (current_side_size - previous_side_size) * sizeof(float),
-    //     side_colors.data() + previous_side_size
-    // );
-
-    // 更新索引数据
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_indicesVboId);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, side_indices.size() * sizeof(int), side_indices.data(), GL_DYNAMIC_DRAW);
-    // glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-    //     previous_side_indices_size * sizeof(int),
-    //     (current_side_indices_size - previous_side_indices_size) * sizeof(int),
-    //     side_indices.data() + previous_side_indices_size
-    // );
-
-    previous_side_size = current_side_size;
-    previous_side_indices_size = current_side_indices_size;
+    m_shaderProgram.cleanUp();
+    if(full)
+        m_bvh_builder.reset();
+    m_tasks.clear();
+    // FIXME: cleanup thread就算没有执行完也要强制退出
+    blockUntilBuildComplete();
 }
-
-// void BVHVisualizationRenderer::updateBVHVisualization() {
-//     // cleanUp();
-
-//     bool init = !m_shaderProgram.is_valid();
-
-//     if(init) {
-//         m_shaderProgram.init();
-//         m_shaderProgram.createVertexShader("./resources/shaders/bvh_visualization_vertex.glsl");
-//         m_shaderProgram.createFragmentShader("./resources/shaders/bvh_visualization_fragment.glsl");
-//         m_shaderProgram.link();
-//         m_shaderProgram.createUniform("MVP");
-//         ShaderProgram::unbind();
-//     }
-//     std::vector<float> vertices;
-//     std::vector<float> colors;
-//     std::vector<int> indices;
-
-//     m_bvh.traverseBVH(&vertices, &colors, &indices, 0, 0, m_bvhVisualizationMinLevel, m_bvhVisualizationMaxLevel, m_leafGreen);
-
-//     m_count = indices.size();
-
-//     if(init) {
-//         glGenVertexArrays(1, &m_vaoId);
-//     }
-//     glBindVertexArray(m_vaoId);
-
-//     if(init) {
-//         glGenBuffers(1, &m_vertexVboId);
-//     }
-//     glBindBuffer(GL_ARRAY_BUFFER, m_vertexVboId);
-//     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
-//     if(init) {
-//         glEnableVertexAttribArray(0);
-//         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-//     }
-
-//     if(init) {
-//         glGenBuffers(1, &m_colorVboId);
-//     }
-//     glBindBuffer(GL_ARRAY_BUFFER, m_colorVboId);
-//     glBufferData(GL_ARRAY_BUFFER, colors.size() * sizeof(float), colors.data(), GL_STATIC_DRAW);
-//     if(init) {
-//         glEnableVertexAttribArray(1);
-//         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-//     }
-
-//     if(init) {
-//         glGenBuffers(1, &m_indicesVboId);
-//     }
-//     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_indicesVboId);
-//     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(int), indices.data(), GL_STATIC_DRAW);
-
-//     glBindVertexArray(0);
-// }
