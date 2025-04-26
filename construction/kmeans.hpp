@@ -29,7 +29,7 @@ public:
         children = NULL;
     }
 
-    Kmeans(size_t iterCount, size_t K, size_t P, std::vector<Primitive *> primitives);
+    Kmeans(size_t iterCount, size_t K, size_t P, std::vector<Primitive *> primitives, int rank = -1, int num_procs = 0);
     ~Kmeans();
 
     // 执行
@@ -40,12 +40,6 @@ public:
 
     // 从上至下构造k叉树
     void constructKaryTree(int depth);
-
-    // 从下至上 凝聚聚类(AC)构造二叉树
-    KBVHNode* agglomerativeClustering();
-
-    // 自底向上递归构造
-    void buttom2Top();
 
     // 打印结果
     void print() const;
@@ -61,6 +55,8 @@ public:
     size_t m_P;
 
     int unique_id;
+    int rank;
+    int num_procs;
 
     // 聚类体
     Cluster* cluster;
@@ -79,8 +75,9 @@ public:
 private:
     // 计时用
     // Timer timer;
+    void runMPI();
 
-    std::vector<bool> children_existence;
+    std::vector<int> children_existence;
     // 与渲染进行沟通的callback
     std::function<void (const BoundingBox, const bool)> callback_func;
 
@@ -88,6 +85,4 @@ private:
     std::vector<BoundingBox> getRandCentroidsOnMesh(int k, int p);
     // 距离公式
     float calDistance(BoundingBox b1, BoundingBox b2);
-    // 合并两个KBVHNode (agglomerativeClustering用)
-    KBVHNode* combine(KBVHNode* a, KBVHNode* b);
 };

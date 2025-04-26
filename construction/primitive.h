@@ -3,6 +3,7 @@
 
 #include "bbox.hpp"
 #include "vertex.h"
+#include <vector>
 
 class Primitive {
 public:
@@ -22,6 +23,16 @@ public:
         bbox_initialized_ = true;
         bbox = bbox_new;
         return bbox;
+    }
+
+    std::vector<char> serialize() const {
+        std::vector<char> data(sizeof(Vertex) * 3);
+        memcpy(data.data(), vertices, sizeof(Vertex) * 3);
+        return data;
+    }
+    void deserialize(const char* buffer) {
+        memcpy(vertices, buffer, sizeof(Vertex) * 3);
+        bbox_initialized_ = false;
     }
 private:
     BoundingBox bbox;

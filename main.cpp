@@ -2,13 +2,10 @@
 #include "renderengine/utils/IOUtils.h"
 #include "visualization/BVHVisualizationRenderLogic.h"
 #include "construction/timer.hpp"
-#include <omp.h>
+#include <mpi.h>
 
 int main(int argc, char *argv[]) {
-
-    // FIXME: 演示：openmp并行，记得include <omp.h>
-    // #pragma omp parallel for
-    // for (int i = 0; i < 100; i++) printf("%d\n", i);
+    MPI_Init(&argc, &argv);
 
     bool gui = true;
     bool render = true;
@@ -54,5 +51,6 @@ int main(int argc, char *argv[]) {
 
     timer::time_prefix_sum();
 
+    MPI_Finalize();
     return EXIT_SUCCESS;
 }

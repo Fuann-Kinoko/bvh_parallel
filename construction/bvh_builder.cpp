@@ -1,5 +1,6 @@
 #include "bvh_builder.h"
 #include "construction/timer.hpp"
+#include <mpi.h> // MPI
 
 std::shared_ptr<BVHBuilder> BVHBuilder::LoadFromObj(const std::string& path) {
     // 创建 BVHBuilder 实例
@@ -60,15 +61,20 @@ void BVHBuilder::Build() {
         p_pri.push_back(&pri_i);
     }
 
-    Kmeans *k = new Kmeans(2, 8, 5, p_pri);
+    int rank, num_procs;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+
+    Kmeans *k = new Kmeans(1, 8, 5, p_pri, rank, num_procs);
     k->registerCallback(m_callback);
 
     // 创建表头
-    timer::create_k_means_header();
-
-    std::cout << "[Log] K-means BVH Building..." << std::endl;
-
+    if(rank == 0) {
+        timer::create_k_means_header();
+        std::cout << "[Log] K-means BVH Building..." << std::endl;
+    }
     k->constructKaryTree(0);
-
-    std::cout << "[Log] K-means BVH Building Completed" << std::endl;
+    if(rank == 0) {
+        std::cout << "[Log] K-means BVH Building Completed" << std::endl;
+    }
 }

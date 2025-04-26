@@ -24,5 +24,6 @@ if [ $# -ge 1 ]; then
 fi
 
 
-./BVHVisualization --no_gui --no_render "$MODEL"
+# ./BVHVisualization --no_gui --no_render "$MODEL"
+mpirun -np 2 ./BVHVisualization --no_gui --no_render "$MODEL"
 
