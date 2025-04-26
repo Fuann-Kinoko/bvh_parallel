@@ -5,11 +5,6 @@
 #include <omp.h>
 
 int main(int argc, char *argv[]) {
-
-    // FIXME: 演示：openmp并行，记得include <omp.h>
-    // #pragma omp parallel for
-    // for (int i = 0; i < 100; i++) printf("%d\n", i);
-
     bool gui = true;
     bool render = true;
     std::vector<char*> filtered_args;

@@ -63,7 +63,7 @@ vector<BoundingBox> Kmeans::getRandCentroidsOnMesh(int k, int p)
     {
         // 随机p个点
         std::vector<BoundingBox> tempP;
-#pragma omp parallel for
+        tempP.reserve(p);
         for (int j = 0; j < p; j++)
         {
             idx_primitive = rand() % primitives.size();
@@ -73,7 +73,6 @@ vector<BoundingBox> Kmeans::getRandCentroidsOnMesh(int k, int p)
         // 选取与之前算出的点距离最远的点作为下一个representive
         int index = 0;
         float maxDistance = -1.0f;
-#pragma omp parallel for reduction(max : maxDistance)
         for (int k = 0; k < p; k++)
         {
             float local_maxDistance = -1.0f;
@@ -90,7 +89,6 @@ vector<BoundingBox> Kmeans::getRandCentroidsOnMesh(int k, int p)
             }
             if (local_maxDistance > maxDistance)
             {
-#pragma omp critical // critical避免数据竞争
                 {
                     if (local_maxDistance > maxDistance)
                     {
@@ -256,57 +254,122 @@ KBVHNode *Kmeans::combine(KBVHNode *a, KBVHNode *b)
     return res;
 }
 
+#define RUN_OPENMP
 void Kmeans::run()
 {
-    // 预分配内存
-#pragma omp parallel for
-    for (size_t i = 0; i < m_K; ++i)
-    {
-        cluster[i].indexOfPrimitives.reserve(primitives.size() / m_K * 2);
-    }
-
-    for (size_t iter = 0; iter < m_iterations; ++iter)
-    {
-        // 更新representives cluster重新分配
-#pragma omp parallel for schedule(dynamic)
-        for (size_t i = 0; i < m_K; ++i)
-        {
-            if (iter != 0)
-            {
+    int total_size = primitives.size();
+    for (size_t iter = 0; iter < m_iterations; ++iter) {
+        for (size_t i = 0; i < m_K; ++i) {
+            if (iter != 0) {
                 cluster[i].updateRepresentive();
             }
             cluster[i].reset();
             cluster[i].indexOfPrimitives.clear();
         }
 
-        // 计算距离并分配至最近的cluster
-        std::vector<size_t> nearestCluster(primitives.size());
-
-        // 并行计算每个primitive的最近cluster索引
-#pragma omp parallel for
-        for (size_t idx_primitives = 0; idx_primitives < primitives.size(); ++idx_primitives)
-        {
-            size_t index = 0;
-            double minDistance = std::numeric_limits<double>::max();
-            BoundingBox temp = primitives[idx_primitives]->get_bbox();
-            for (size_t idx_clusters = 0; idx_clusters < m_K; ++idx_clusters)
+        #ifdef RUN_OPENMP // run in parallel
+        // Method 2
+        if(total_size > 1024) {
+            std::array<std::vector<size_t>, 8> local_clusters_indexes;
+            std::array<glm::vec3, 8> local_clusters_mmin;
+            std::array<glm::vec3, 8> local_clusters_mmax;
+            // spawn thread
+            #pragma omp parallel num_threads(8) \
+                shared(cluster, primitives, total_size) \
+                private(local_clusters_indexes, local_clusters_mmin, local_clusters_mmax)
             {
-                double dist = calDistance(temp, cluster[idx_clusters].representive);
-                if (dist < minDistance)
+                // init local array
+                for(int c = 0; c < 8; ++c) {
+                    local_clusters_mmin[c] = glm::vec3(0.0f);
+                    local_clusters_mmax[c] = glm::vec3(0.0f);
+                    local_clusters_indexes[c].reserve(total_size >> 2);
+                }
+
+                // staticallly partitioning blocks
+                #pragma omp for schedule(static)
+                for (int primitive_idx = 0; primitive_idx < total_size; ++primitive_idx) {
+                    BoundingBox primitive_bbox = primitives[primitive_idx]->get_bbox();
+                    double distances[8];
+
+                    // SIMD computation for distance
+                    #pragma omp simd
+                    for (int c = 0; c < 8; ++c) {
+                        BoundingBox cluster_bbox = cluster[c].representive;
+                        double min_value = glm::length(primitive_bbox.min - cluster_bbox.min);
+                        double max_value = glm::length(primitive_bbox.max - cluster_bbox.max);
+                        distances[c] = min_value + max_value;
+                    }
+
+                    // find nearest cluster in serial
+                    int nearest = 0;
+                    double min_dist = distances[0];
+                    for (int c = 1; c < 8; ++c) {
+                        if (distances[c] < min_dist) {
+                            min_dist = distances[c];
+                            nearest = c;
+                        }
+                    }
+
+                    // update local cluster data
+                    local_clusters_mmin[nearest] += primitive_bbox.min;
+                    local_clusters_mmax[nearest] += primitive_bbox.max;
+                    local_clusters_indexes[nearest].push_back(primitive_idx);
+                }
+
+                // merge local cluster data to global
+                #pragma omp critical
                 {
+                    for (int c = 0; c < 8; ++c) {
+                        cluster[c].m_min += local_clusters_mmin[c];
+                        cluster[c].m_max += local_clusters_mmax[c];
+
+                        cluster[c].indexOfPrimitives.insert(
+                            cluster[c].indexOfPrimitives.end(),
+                            local_clusters_indexes[c].begin(),
+                            local_clusters_indexes[c].end()
+                        );
+                    }
+                }
+            }
+        }
+        // Method 1
+        else {
+            std::vector<int> nearestCluster(total_size);
+            #pragma omp parallel for
+            for (int idx_primitives = 0; idx_primitives < total_size; ++idx_primitives) {
+                int index = 0;
+                double minDistance = std::numeric_limits<double>::max();
+                BoundingBox temp = primitives[idx_primitives]->get_bbox();
+                for (int idx_clusters = 0; idx_clusters < m_K; ++idx_clusters) {
+                    double dist = calDistance(temp, cluster[idx_clusters].representive);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        index = idx_clusters;
+                    }
+                }
+                nearestCluster[idx_primitives] = index;
+            }
+            for (size_t idx_primitives = 0; idx_primitives < primitives.size(); ++idx_primitives) {
+                size_t index = nearestCluster[idx_primitives];
+                cluster[index].add(idx_primitives, primitives[idx_primitives]->get_bbox());
+            }
+        }
+
+        #else // run in serial
+        for (size_t idx_primitives = 0; idx_primitives < primitives.size(); ++idx_primitives) {
+            size_t index = 0;
+            double minDistance = numeric_limits<double>::max();
+            BoundingBox temp = primitives[idx_primitives]->get_bbox();
+            for (size_t idx_clusters = 0; idx_clusters < m_K; ++idx_clusters) {
+                double dist = calDistance(temp, cluster[idx_clusters].representive);
+                if (dist < minDistance) {
                     minDistance = dist;
                     index = idx_clusters;
                 }
             }
-            nearestCluster[idx_primitives] = index;
-        }
-
-        // 根据计算结果将primitive分配到对应cluster
-        for (size_t idx_primitives = 0; idx_primitives < primitives.size(); ++idx_primitives)
-        {
-            size_t index = nearestCluster[idx_primitives];
             cluster[index].add(idx_primitives, primitives[idx_primitives]->get_bbox());
         }
+        #endif
     }
     // print();
 }
