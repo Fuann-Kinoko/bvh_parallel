@@ -268,13 +268,14 @@ void Kmeans::run()
         }
 
         #ifdef RUN_OPENMP // run in parallel
+        #define MP_THREAD_NUM 8
         // Method 2
         if(total_size > 1024) {
             std::array<std::vector<size_t>, 8> local_clusters_indexes;
             std::array<glm::vec3, 8> local_clusters_mmin;
             std::array<glm::vec3, 8> local_clusters_mmax;
             // spawn thread
-            #pragma omp parallel num_threads(8) \
+            #pragma omp parallel num_threads(MP_THREAD_NUM) \
                 shared(cluster, primitives, total_size) \
                 private(local_clusters_indexes, local_clusters_mmin, local_clusters_mmax)
             {
