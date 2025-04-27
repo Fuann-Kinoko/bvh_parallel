@@ -3,18 +3,23 @@
 
 #include "bbox.hpp"
 #include <vector>
+#include <omp.h>
 
-class Cluster {
+class Cluster
+{
 public:
     BoundingBox world;
     BoundingBox representive;
     std::vector<size_t> indexOfPrimitives;
 
+    glm::vec3 m_min;
+    glm::vec3 m_max;
+
     // 更新中心点
     void updateRepresentive()
     {
-        representive = BoundingBox(m_min /= indexOfPrimitives.size(), m_max /= indexOfPrimitives.size());
-        // cout<<representive<<endl;
+        const float inv_size = 1.0f / indexOfPrimitives.size();
+        representive = BoundingBox(m_min * inv_size, m_max * inv_size);
     }
 
     void reset()
@@ -30,12 +35,5 @@ public:
         m_max += bb.max;
         world.expand(bb);
     }
-
-    glm::vec3 get_min() {return m_min;}
-    glm::vec3 get_max() {return m_max;}
-
-private:
-    glm::vec3 m_min;
-    glm::vec3 m_max;
 };
 #endif // CLUSTER_H_
